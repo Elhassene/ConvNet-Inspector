@@ -5,8 +5,15 @@ import matplotlib.pyplot as plt
 from matplotlib import ticker
 from utils import parse_csv_matrices, compute_symmetry_score
 
-st.set_page_config(page_title="CSV Analysis", layout="wide")
-st.title("CSV Analysis")
+st.set_page_config(page_title="Symmetry and Distribution Analysis", layout="wide")
+st.title("Symmetry and Distribution Analysis")
+
+st.markdown(
+    "Use this page to analyze a CSV of flattened kernels. You can compute the "
+    "mean kernel for the file, evaluate its symmetry score, and plot the "
+    "distribution of symmetry scores across all kernels with mean and median "
+    "markers on the histogram."
+)
 
 csv_file = st.file_uploader("Upload a CSV containing flattened matrices (one per row)", type=["csv"])
 c1, c2 = st.columns(2)

@@ -4,8 +4,14 @@ import pandas as pd
 from io import StringIO
 from utils import load_model_from_bytes_cached, kernels_to_matrices
 
-st.set_page_config(page_title="Layer Inspector", layout="wide")
-st.title("Layer Inspector")
+st.set_page_config(page_title="Model Layer Inspector", layout="wide")
+st.title("Model Layer Inspector")
+
+st.markdown(
+    "This page lets you upload a Keras `.h5` model, inspect all its layers, "
+    "filter convolution kernels by spatial size (3×3, 5×5, etc.), and export "
+    "the kernels of a selected layer to a CSV file for further offline analysis."
+)
 
 if "model" not in st.session_state:
     st.session_state["model"] = None

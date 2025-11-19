@@ -3,9 +3,15 @@ import numpy as np
 import pandas as pd
 from utils import compute_symmetry_score, recondition_kernel, kernel_distance
 
-st.set_page_config(page_title="Random & Input Matrix", layout="wide")
-st.title("Random & Input Matrix")
+st.set_page_config(page_title="Random and Input Kernel Lab", layout="wide")
+st.title("Random and Input Kernel Lab")
 
+st.markdown(
+    "This page is a sandbox for individual kernels. In the **Random matrix** tab, "
+    "you can generate a random n×n kernel, compute its symmetry score, condition "
+    "number, and reconditioned version. In the **Input matrix** tab, you can "
+    "paste a single kernel by hand and run the same analysis pipeline on it."
+)
 tabs = st.tabs(["Random matrix", "Input matrix"])
 
 with tabs[0]:

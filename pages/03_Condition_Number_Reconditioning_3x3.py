@@ -4,8 +4,15 @@ import pandas as pd
 from io import StringIO
 from utils import recondition_kernel
 
-st.set_page_config(page_title="Recondition 3×3", layout="wide")
-st.title("Recondition 3×3 by Condition Number")
+st.set_page_config(page_title="Condition Number Reconditioning 3×3", layout="wide")
+st.title("Condition Number Reconditioning 3×3")
+
+st.markdown(
+    "This page processes a CSV of flattened 3×3 kernels. For each kernel it "
+    "computes the condition number, labels it as above or below a chosen "
+    "threshold **C**, and applies SVD-based reconditioning when the condition "
+    "number is too high. The result can be downloaded as an enriched CSV."
+)
 
 rec_csv = st.file_uploader("Upload a CSV with flattened 3×3 matrices (each row has 9 values)", type=["csv"])
 C_val = st.number_input("Threshold C (max allowed condition number)", min_value=1.0, value=5.0, step=0.5)
