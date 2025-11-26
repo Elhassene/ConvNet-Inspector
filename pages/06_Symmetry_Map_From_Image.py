@@ -2,6 +2,8 @@ import streamlit as st
 import numpy as np
 from PIL import Image
 from io import BytesIO
+import matplotlib.pyplot as plt
+from matplotlib import ticker
 from utils import compute_symmetry_score
 
 st.set_page_config(page_title="Symmetry Map From Image", layout="wide")
@@ -11,8 +13,8 @@ st.markdown(
     "This page takes a square image (e.g. 64×64), treats each pixel as an intensity value, "
     "and for every interior pixel it builds a 3×3 patch centered on that pixel. "
     "For each 3×3 patch it computes the **symmetry score** and uses that score as the new "
-    "intensity value. Border pixels (first/last row and column) are ignored, so the output "
-    "image has size `(H−2)×(W−2)` (e.g. 62×62 for a 64×64 input)."
+    "intensity value. Border pixels (first and last row/column) are ignored, so the output "
+    "image has size `(H−2)×(W−2)` (for example, a 64×64 input produces a 62×62 output)."
 )
 
 uploaded = st.file_uploader(
@@ -61,6 +63,37 @@ if uploaded is not None and run_btn:
             file_name="symmetry_map.png",
             mime="image/png"
         )
+
+        st.divider()
+        st.subheader("Distribution of symmetry scores in the output image")
+
+        scores = out.flatten()
+        mean_val = float(np.mean(scores))
+        median_val = float(np.median(scores))
+
+        fig = plt.figure(figsize=(10, 6))
+        bins = 12
+        counts, bin_edges, _ = plt.hist(scores, bins=bins, edgecolor="black", alpha=0.7)
+
+        plt.axvline(mean_val, color="red", linestyle="--", linewidth=2, label=f"Mean = {mean_val:.3f}")
+        plt.axvline(median_val, color="green", linestyle="-", linewidth=2, label=f"Median = {median_val:.3f}")
+
+        centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+        labels = [f"{bin_edges[i]:.2f}–{bin_edges[i+1]:.2f}" for i in range(len(bin_edges)-1)]
+        plt.xticks(centers, labels, rotation=45, ha="right")
+
+        ax = plt.gca()
+        ax.yaxis.set_major_locator(ticker.MaxNLocator(integer=True))
+        if counts.size > 0:
+            plt.ylim(0, counts.max() * 1.12)
+
+        plt.xlabel("Symmetry score range")
+        plt.ylabel("Frequency")
+        plt.title("Symmetry Score Distribution (output image)")
+        plt.legend()
+        plt.tight_layout()
+
+        st.pyplot(fig)
 
 elif run_btn and uploaded is None:
     st.error("Please upload an image first.")
