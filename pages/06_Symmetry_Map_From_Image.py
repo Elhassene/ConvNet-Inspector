@@ -10,90 +10,137 @@ st.set_page_config(page_title="Symmetry Map From Image", layout="wide")
 st.title("Symmetry Map From Image")
 
 st.markdown(
-    "This page takes a square image (e.g. 64×64), treats each pixel as an intensity value, "
-    "and for every interior pixel it builds a 3×3 patch centered on that pixel. "
-    "For each 3×3 patch it computes the **symmetry score** and uses that score as the new "
-    "intensity value. Border pixels (first and last row/column) are ignored, so the output "
-    "image has size `(H−2)×(W−2)` (for example, a 64×64 input produces a 62×62 output)."
+    "This page takes an image, converts it to grayscale, and for every interior pixel "
+    "builds a 3×3 patch centered on that pixel. For each patch it computes the "
+    "symmetry score and uses that score as the new intensity value. "
+    "Border pixels are ignored, so the output image has size (H−2)×(W−2)."
+)
+
+if "sym_data" not in st.session_state:
+    st.session_state["sym_data"] = None
+
+T = st.slider(
+    "Symmetry threshold T (0 = show all, 1 = highlight only very symmetric regions)",
+    min_value=0.0,
+    max_value=1.0,
+    value=0.0,
+    step=0.01,
 )
 
 uploaded = st.file_uploader(
-    "Upload a square grayscale image (PNG/JPG/JPEG). If the image is RGB it will be converted to grayscale.",
+    "Upload an image (PNG/JPG/JPEG). If the image is RGB it will be converted to grayscale.",
     type=["png", "jpg", "jpeg"]
 )
 
 run_btn = st.button("Compute symmetry map")
 
+MAX_SIDE = 256
+
 if uploaded is not None and run_btn:
-    img = Image.open(uploaded).convert("L")
-    arr = np.array(img).astype(float)
+    img_raw = Image.open(uploaded).convert("L")
+    orig_w, orig_h = img_raw.size
 
-    H, W = arr.shape
-    if H < 3 or W < 3:
-        st.error("Image must be at least 3×3.")
+    if max(orig_w, orig_h) > MAX_SIDE:
+        scale = MAX_SIDE / float(max(orig_w, orig_h))
+        new_w = int(orig_w * scale)
+        new_h = int(orig_h * scale)
+        img = img_raw.resize((new_w, new_h), Image.BILINEAR)
     else:
-        out_h, out_w = H - 2, W - 2
-        out = np.zeros((out_h, out_w), dtype=float)
+        img = img_raw
 
-        for i in range(1, H - 1):
-            for j in range(1, W - 1):
-                patch = arr[i - 1:i + 2, j - 1:j + 2]
-                s = compute_symmetry_score(patch)
-                out[i - 1, j - 1] = s
+    arr = np.array(img).astype(float)
+    H, W = arr.shape
+
+    if H < 3 or W < 3:
+        st.error("Image must be at least 3×3 after resizing.")
+        st.session_state["sym_data"] = None
+    else:
+        with st.spinner("Computing symmetry map..."):
+            out_h, out_w = H - 2, W - 2
+            out = np.zeros((out_h, out_w), dtype=float)
+            for i in range(1, H - 1):
+                for j in range(1, W - 1):
+                    patch = arr[i - 1:i + 2, j - 1:j + 2]
+                    s = compute_symmetry_score(patch)
+                    out[i - 1, j - 1] = s
 
         out = np.clip(out, 0.0, 1.0)
-        out_uint8 = (out * 255).astype(np.uint8)
-        out_img = Image.fromarray(out_uint8, mode="L")
+        out_img = Image.fromarray((out * 255).astype(np.uint8), mode="L")
 
-        c1, c2 = st.columns(2)
-        with c1:
-            st.subheader(f"Original image ({H}×{W})")
-            st.image(img, use_column_width=True)
-        with c2:
-            st.subheader(f"Symmetry map ({out_h}×{out_w})")
-            st.image(out_img, use_column_width=True)
+        st.session_state["sym_data"] = {
+            "orig_img": img_raw,
+            "orig_size": (orig_h, orig_w),
+            "proc_size": (H, W),
+            "out": out,
+            "out_img": out_img,
+        }
 
-        buf = BytesIO()
-        out_img.save(buf, format="PNG")
-        buf.seek(0)
-
-        st.download_button(
-            "Download symmetry map (PNG)",
-            buf.getvalue(),
-            file_name="symmetry_map.png",
-            mime="image/png"
-        )
-
-        st.divider()
-        st.subheader("Distribution of symmetry scores in the output image")
-
-        scores = out.flatten()
-        mean_val = float(np.mean(scores))
-        median_val = float(np.median(scores))
-
-        fig = plt.figure(figsize=(10, 6))
-        bins = 12
-        counts, bin_edges, _ = plt.hist(scores, bins=bins, edgecolor="black", alpha=0.7)
-
-        plt.axvline(mean_val, color="red", linestyle="--", linewidth=2, label=f"Mean = {mean_val:.3f}")
-        plt.axvline(median_val, color="green", linestyle="-", linewidth=2, label=f"Median = {median_val:.3f}")
-
-        centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-        labels = [f"{bin_edges[i]:.2f}–{bin_edges[i+1]:.2f}" for i in range(len(bin_edges)-1)]
-        plt.xticks(centers, labels, rotation=45, ha="right")
-
-        ax = plt.gca()
-        ax.yaxis.set_major_locator(ticker.MaxNLocator(integer=True))
-        if counts.size > 0:
-            plt.ylim(0, counts.max() * 1.12)
-
-        plt.xlabel("Symmetry score range")
-        plt.ylabel("Frequency")
-        plt.title("Symmetry Score Distribution (output image)")
-        plt.legend()
-        plt.tight_layout()
-
-        st.pyplot(fig)
-
-elif run_btn and uploaded is None:
+elif uploaded is None and run_btn:
     st.error("Please upload an image first.")
+    st.session_state["sym_data"] = None
+
+sym_data = st.session_state["sym_data"]
+
+if sym_data is not None:
+    orig_img = sym_data["orig_img"]
+    orig_h, orig_w = sym_data["orig_size"]
+    H, W = sym_data["proc_size"]
+    out = sym_data["out"]
+    out_img = sym_data["out_img"]
+    out_h, out_w = out.shape
+
+    denom = max(1e-8, 1.0 - T)
+    out_adj = np.clip((out - T) / denom, 0.0, 1.0)
+    out_adj_img = Image.fromarray((out_adj * 255).astype(np.uint8), mode="L")
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.subheader(f"Original ({orig_h}×{orig_w}, processed: {H}×{W})")
+        st.image(orig_img, use_container_width=True)
+    with c2:
+        st.subheader(f"Raw symmetry map ({out_h}×{out_w})")
+        st.image(out_img, use_container_width=True)
+    with c3:
+        st.subheader(f"Adjusted symmetry map (T = {T:.2f})")
+        st.image(out_adj_img, use_container_width=True)
+
+    buf = BytesIO()
+    out_adj_img.save(buf, format="PNG")
+    buf.seek(0)
+    st.download_button(
+        "Download adjusted symmetry map (PNG)",
+        buf.getvalue(),
+        file_name=f"symmetry_map_T_{T:.2f}.png",
+        mime="image/png"
+    )
+
+    st.divider()
+    st.subheader("Distribution of symmetry scores in the raw symmetry map")
+
+    scores = out.flatten()
+    mean_val = float(np.mean(scores))
+    median_val = float(np.median(scores))
+
+    fig = plt.figure(figsize=(10, 6))
+    bins = 12
+    counts, bin_edges, _ = plt.hist(scores, bins=bins, edgecolor="black", alpha=0.7)
+
+    plt.axvline(mean_val, color="red", linestyle="--", linewidth=2, label=f"Mean = {mean_val:.3f}")
+    plt.axvline(median_val, color="green", linestyle="-", linewidth=2, label=f"Median = {median_val:.3f}")
+
+    centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+    labels = [f"{bin_edges[i]:.2f}–{bin_edges[i+1]:.2f}" for i in range(len(bin_edges) - 1)]
+    plt.xticks(centers, labels, rotation=45, ha="right")
+
+    ax = plt.gca()
+    ax.yaxis.set_major_locator(ticker.MaxNLocator(integer=True))
+    if counts.size > 0:
+        plt.ylim(0, counts.max() * 1.12)
+
+    plt.xlabel("Symmetry score range")
+    plt.ylabel("Frequency")
+    plt.title("Symmetry Score Distribution (raw symmetry map)")
+    plt.legend()
+    plt.tight_layout()
+
+    st.pyplot(fig)
