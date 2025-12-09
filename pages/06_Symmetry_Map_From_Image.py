@@ -19,7 +19,7 @@ st.markdown(
 if "sym_data" not in st.session_state:
     st.session_state["sym_data"] = None
 
-T = st.slider(
+T = st.sidebar.slider(
     "Symmetry threshold T (0 = show all, 1 = highlight only very symmetric regions)",
     min_value=0.0,
     max_value=1.0,
