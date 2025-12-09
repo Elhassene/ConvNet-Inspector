@@ -10,10 +10,9 @@ Multi-page Streamlit app:
 - **Condition Number Analysis** — compute condition numbers from CSVs or visualize distributions
 - **Symmetry Map From Image** — compute pixel-wise symmetry heatmaps using 3×3 patches
 
-## Cone Run locally
+## Clone & Run locally
 ```bash
 git clone https://github.com/Elhassene/ConvNet-Inspector.git
 cd ConvNet-Inspector
 pip install -r requirements.txt
 streamlit run Home.py
-
